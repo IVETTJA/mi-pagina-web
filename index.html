@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Consola de Validación - Seguritech</title>
+  <script src="datos.js"></script>
+  <style>
+    :root { 
+      --blue-seguritech: #004E94; 
+      --dark-seguritech: #002d57; 
+      --accent-seguritech: #00c4ff; 
+      --bg-panel: #0b1a30;
+      --white: #ffffff; 
+    }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-panel); display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; }
+    .canvas { width: 1200px; height: 620px; background: var(--white); box-shadow: 0 25px 60px rgba(0,0,0,0.6); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; }
+    .header-bar { display: flex; justify-content: space-between; align-items: center; background: var(--dark-seguritech); padding: 15px 40px; border-bottom: 4px solid var(--accent-seguritech); color: var(--white); }
+    .driver-title { margin: 0; font-size: 26px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .logo-container { height: 50px; display: flex; align-items: center; color: var(--white); font-weight: bold; font-size: 24px; font-style: italic; }
+    .logo-container span { color: var(--accent-seguritech); }
+    .split-content { display: flex; flex: 1; height: calc(100% - 84px); }
+    .left-side { width: 50%; background: #f4f7fa; display: flex; align-items: center; justify-content: center; padding: 30px; box-sizing: border-box; border-right: 1px solid #e2e8f0; }
+    .image-frame { width: 100%; height: 100%; background: var(--white); border-radius: 8px; box-shadow: 0 8px 20px rgba(0, 78, 148, 0.1); padding: 15px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; }
+    .image-frame img { width: 100%; height: 100%; object-fit: contain; }
+    .right-side { width: 50%; background: #0d2240; color: var(--white); padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; gap: 25px; }
+    .data-card { background: rgba(0, 78, 148, 0.25); border-left: 5px solid var(--accent-seguritech); padding: 20px 25px; border-radius: 0 8px 8px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+    .data-label { color: var(--accent-seguritech); font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; display: block; }
+    .data-value { font-size: 24px; font-weight: 500; }
+    .navigation-panel { display: flex; align-items: center; gap: 20px; background: var(--dark-seguritech); padding: 10px 30px; border-radius: 50px; margin-top: 25px; color: var(--white); font-weight: bold; box-shadow: 0 10px 25px rgba(0,0,0,0.4); }
+    .btn-nav { background: var(--blue-seguritech); color: var(--white); border: none; padding: 8px 22px; border-radius: 20px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+    .btn-nav:hover { background: var(--accent-seguritech); color: var(--dark-seguritech); }
+    .input-jump { background: transparent; border: 1px solid var(--accent-seguritech); color: var(--white); padding: 6px; border-radius: 4px; width: 50px; text-align: center; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <div class="canvas">
+    <div class="header-bar">
+      <h2 class="driver-title" id="lbl-nombre-titulo">Cargando contratista...</h2>
+      <div class="logo-container">Seguri<span>Tech</span></div>
+    </div>
+
+    <div class="split-content">
+      <div class="left-side"><div class="image-frame"><img id="el-img-licencia" src="" alt="Cargando..."></div></div>
+      <div class="right-side">
+        <div class="data-card"><span class="data-label">[Número de Licencia]</span><div class="data-value" id="lbl-numero">---</div></div>
+        <div class="data-card"><span class="data-label">[Clase / Tipo]</span><div class="data-value" id="lbl-clase">---</div></div>
+        <div class="data-card"><span class="data-label">[Vigencia]</span><div class="data-value" id="lbl-vigencia">---</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="navigation-panel">
+    <button class="btn-nav" onclick="cambiarRegistro(-1)">◀ Anterior</button>
+    <span id="lbl-contador">REGISTRO: 1 / 71</span>
+    <button class="btn-nav" onclick="cambiarRegistro(1)">Siguiente ▶</button>
+    <span style="font-size:12px; font-weight: normal; color: #a0aec0;">Ir a panel:</span>
+    <input type="number" class="input-jump" id="txt-salto" min="1" max="71" value="1" onchange="saltarARegistro(this.value)">
+  </div>
+
+<script>
+  let indexActivo = 0;
+  let TOTAL_REGISTROS = 71;
+  let baseDatosSeguritech = [];
+
+  // FUNCIÓN CORRECTORA: Traduce el número interno de Excel a formato fecha DD/MM/AAAA
+  function convertirFechaExcel(numeroExcel) {
+    if (!numeroExcel || isNaN(numeroExcel)) return numeroExcel;
+    let num = parseInt(numeroExcel);
+    if (num < 25000 || num > 60000) return numeroExcel; // Valida que sea un rango lógico de fechas actuales
+    
+    let fecha = new Date((num - 25569) * 86400 * 1000);
+    let dia = ("0" + fecha.getUTCDate()).slice(-2);
+    let mes = ("0" + (fecha.getUTCMonth() + 1)).slice(-2);
+    let anio = fecha.getUTCFullYear();
+    
+    return dia + "/" + mes + "/" + anio;
+  }
+
+  function vincularDatos() {
+    if (typeof myExcelData !== 'undefined') {
+      let datosCrudos = myExcelData;
+      let primerItemStr = JSON.stringify(datosCrudos).toLowerCase();
+      if ((primerItemStr.includes("nombre") || primerItemStr.includes("numero") || primerItemStr.includes("clase")) && datosCrudos.length > 1) {
+        baseDatosSeguritech = datosCrudos.slice(1);
+      } else {
+        baseDatosSeguritech = datosCrudos;
+      }
+      TOTAL_REGISTROS = baseDatosSeguritech.length;
+      document.getElementById("lbl-contador").innerText = "REGISTRO: 1 / " + TOTAL_REGISTROS;
+      document.getElementById("txt-salto").max = TOTAL_REGISTROS;
+    }
+    renderizarPantalla();
+  }
+
+  function renderizarPantalla() {
+    const item = baseDatosSeguritech[indexActivo];
+    let registroActual = indexActivo + 1;
+
+    if (!item) {
+      document.getElementById("lbl-nombre-titulo").innerText = "CONTRATISTA REGISTRO NO. " + registroActual;
+      document.getElementById("el-img-licencia").src = "imagenes/licencia_" + registroActual + ".jpg";
+      document.getElementById("lbl-numero").innerText = "---";
+      document.getElementById("lbl-clase").innerText = "---";
+      document.getElementById("lbl-vigencia").innerText = "---";
+      return;
+    }
+
+    const valoresDeCeldas = Object.values(item);
+
+    let img = valoresDeCeldas[0] ? valoresDeCeldas[0].toString().trim() : "imagenes/licencia_" + registroActual + ".jpg";
+    let nom = valoresDeCeldas[1] ? valoresDeCeldas[1].toString().trim().toUpperCase() : "CONTRATISTA REGISTRO NO. " + registroActual;
+    let num = valoresDeCeldas[2] ? valoresDeCeldas[2].toString().trim() : "---";
+    let cla = valoresDeCeldas[3] ? valoresDeCeldas[3].toString().trim() : "---";
+    let vig = valoresDeCeldas[4] ? valoresDeCeldas[4].toString().trim() : "---";
+
+    if (img && !img.includes("/") && !img.includes("\\")) {
+      img = "imagenes/" + img;
+    }
+
+    // Ejecuta la conversión de seguridad si detecta un número de Excel
+    vig = convertirFechaExcel(vig);
+
+    document.getElementById("lbl-nombre-titulo").innerText = nom;
+    document.getElementById("el-img-licencia").src = img;
+    document.getElementById("lbl-numero").innerText = num;
+    document.getElementById("lbl-clase").innerText = cla;
+    document.getElementById("lbl-vigencia").innerText = vig;
+  }
+
+  function cambiarRegistro(direccion) {
+    indexActivo = (indexActivo + direccion + TOTAL_REGISTROS) % TOTAL_REGISTROS;
+    actualizarInterfazControles();
+  }
+
+  function saltarARegistro(valor) {
+    let numero = parseInt(valor);
+    if (!isNaN(numero) && numero >= 1 && numero <= TOTAL_REGISTROS) {
+      indexActivo = numero - 1;
+      actualizarInterfazControles();
+    }
+  }
+
+  function actualizarInterfazControles() {
+    document.getElementById("lbl-contador").innerText = "REGISTRO: " + (indexActivo + 1) + " / " + TOTAL_REGISTROS;
+    document.getElementById("txt-salto").value = indexActivo + 1;
+    renderizarPantalla();
+  }
+
+  window.onload = vincularDatos;
+</script>
+</body>
+</html>
